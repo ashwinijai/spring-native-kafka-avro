@@ -14,6 +14,7 @@ import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
+import org.apache.kafka.common.serialization.ByteArraySerializer;
 import org.apache.kafka.common.serialization.StringSerializer;
 import org.springframework.stereotype.Service;
 
@@ -29,7 +30,7 @@ public class ProducerService {
         Properties properties = new Properties();
         properties.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, "localhost:9092");
         properties.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
-        properties.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, KafkaAvroSerializer.class);
+        properties.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, ByteArraySerializer.class);
         properties.put(KafkaAvroSerializerConfig.SCHEMA_REGISTRY_URL_CONFIG, "http://localhost:8081");
 
         Producer<String, byte[]> producer = new KafkaProducer<>(properties);
@@ -72,13 +73,12 @@ public class ProducerService {
         byteArrayOutputStream.reset();
         BinaryEncoder binaryEncoder = new EncoderFactory().binaryEncoder(byteArrayOutputStream, null);
         datumWriter.write(avroRecord, binaryEncoder);
-
+System.out.println("Schema" + avroRecord.getSchema().toString());
         binaryEncoder.flush();
         byte[] bytes = byteArrayOutputStream.toByteArray();
 
         //prepare the kafka record
         ProducerRecord<String, byte[]> record = new ProducerRecord<>("avro-topic", null, bytes);
-
         producer.send(record);
         //ensures record is sent before closing the producer
         producer.flush();

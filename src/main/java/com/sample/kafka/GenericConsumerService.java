@@ -1,7 +1,6 @@
 package com.sample.kafka;
 
-import com.sample.model.ResponseModel;
-import io.confluent.kafka.serializers.KafkaAvroDeserializer;
+import com.sample.model.GenericAvroBean;
 import io.confluent.kafka.serializers.KafkaAvroDeserializerConfig;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.avro.Schema;
@@ -19,16 +18,15 @@ import org.apache.kafka.common.serialization.StringDeserializer;
 import org.springframework.stereotype.Service;
 
 import java.io.ByteArrayInputStream;
-import java.io.IOException;
 import java.time.Duration;
 import java.util.Collections;
 import java.util.Properties;
 
 @Service
 @Slf4j
-public class ConsumerService {
+public class GenericConsumerService {
 
-    public ResponseModel readMessages() throws IOException {
+    public GenericAvroBean readMessages(GenericAvroBean genericAvroBean) throws Exception {
         Properties properties = new Properties();
         properties.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, "localhost:9092");
         properties.put(ConsumerConfig.GROUP_ID_CONFIG, "generic-record-consumer-group");
@@ -47,44 +45,32 @@ public class ConsumerService {
         while (true) {
             ConsumerRecords<String, byte[]> records = consumer.poll(Duration.ofMillis(100));
             for (ConsumerRecord<String, byte[]> record : records) {
-                //avro schema
-                String eventMessageSchema =
-                        "{" +
-                                "   \"type\": \"record\"," +
-                                "   \"name\": \"EventMessage\"," +
-                                "   \"namespace\": \"avro.oracle.fsgbu.plato.eventhub.events\"," +
-                                "   \"fields\": [" +
-                                "       {\"name\": \"id\", \"type\": \"string\"}," +
-                                "       {\"name\": \"evtCode\", \"type\": \"string\"}," +
-                                "       {\"name\": \"logTime\", \"type\": \"string\"}," +
-                                "       {\"name\": \"logType\", \"type\": \"string\"}," +
-                                "       {\"name\": \"logDescription\", \"type\": \"string\"}," +
-                                "       {\"name\": \"serviceData\", \"type\": \"string\"}," +
-                                "       {\"name\": \"publishedTime\", \"type\": \"string\"}" +
-                                "   ]" +
-                                "}";
-
+                String avroSchema = null;
+                if (null == genericAvroBean) {
+                    genericAvroBean = new GenericAvroBean();
+                }
+                if (null != record.headers() && null != record.headers().headers("schema")) {
+                    avroSchema = new String(record.headers().headers("schema").iterator().next().value());
+                    genericAvroBean.setAvroSchema(avroSchema);
+                } else if (null != genericAvroBean.getAvroSchema()) {
+                    avroSchema = genericAvroBean.getAvroSchema();
+                }
+                if (null == avroSchema) {
+                    throw new Exception("No schema found to deserialize the avro message");
+                }
+                log.info("schema- {}",genericAvroBean.getAvroSchema());
                 Schema.Parser parser = new Schema.Parser();
-                Schema schema = parser.parse(eventMessageSchema);
+                Schema schema = parser.parse(avroSchema);
                 SpecificDatumReader<GenericRecord>
                         datumReader =
                         new SpecificDatumReader<>(schema);
                 ByteArrayInputStream byteArrayInputStream = new ByteArrayInputStream(record.value());
                 BinaryDecoder binaryDecoder = DecoderFactory.get().binaryDecoder(byteArrayInputStream, null);
 
-                GenericRecord genRecord =  datumReader.read(null,binaryDecoder);
-                ResponseModel responseModel = new ResponseModel();
-                responseModel.setId(genRecord.get("id").toString());
-                responseModel.setEvtCode(genRecord.get("evtCode").toString());
-                responseModel.setLogType(genRecord.get("logType").toString());
-                responseModel.setLogDescription(genRecord.get("logDescription").toString());
-                responseModel.setServiceData(genRecord.get("serviceData").toString());
-                responseModel.setLogTime(genRecord.get("logTime").toString());
-                responseModel.setPublishedTime(genRecord.get("publishedTime").toString());
-                log.info("Response Model values - {}", responseModel.toString());
-                return responseModel;
+                GenericRecord genRecord = datumReader.read(null, binaryDecoder);
+                genericAvroBean.setAvroMessage(genRecord.toString());
+                return genericAvroBean;
             }
         }
     }
-
 }
