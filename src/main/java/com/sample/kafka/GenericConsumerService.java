@@ -26,7 +26,7 @@ import java.util.Properties;
 @Slf4j
 public class GenericConsumerService {
 
-    public GenericAvroBean readMessages(GenericAvroBean genericAvroBean) throws Exception {
+    public GenericAvroBean readMessages() throws Exception {
         Properties properties = new Properties();
         properties.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, "localhost:9092");
         properties.put(ConsumerConfig.GROUP_ID_CONFIG, "generic-record-consumer-group");
@@ -46,14 +46,10 @@ public class GenericConsumerService {
             ConsumerRecords<String, byte[]> records = consumer.poll(Duration.ofMillis(100));
             for (ConsumerRecord<String, byte[]> record : records) {
                 String avroSchema = null;
-                if (null == genericAvroBean) {
-                    genericAvroBean = new GenericAvroBean();
-                }
+                GenericAvroBean genericAvroBean = new GenericAvroBean();
                 if (null != record.headers() && null != record.headers().headers("schema")) {
                     avroSchema = new String(record.headers().headers("schema").iterator().next().value());
                     genericAvroBean.setAvroSchema(avroSchema);
-                } else if (null != genericAvroBean.getAvroSchema()) {
-                    avroSchema = genericAvroBean.getAvroSchema();
                 }
                 if (null == avroSchema) {
                     throw new Exception("No schema found to deserialize the avro message");

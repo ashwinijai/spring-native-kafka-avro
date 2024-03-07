@@ -49,11 +49,13 @@ public class KafkaController {
             return e.getMessage();
         }
     }
-    @PostMapping("/consumer/generic")
-    public GenericAvroBean getMessageFromKafkaTopic(@RequestBody GenericAvroBean avroBean)  {
+    @GetMapping("/consumer/generic")
+    public GenericAvroBean getGenMessageFromKafkaTopic()  {
+        GenericAvroBean avroBean = null;
         try {
-            avroBean = genericConsumer.readMessages(avroBean);
+            avroBean = genericConsumer.readMessages();
         }catch(Exception e){
+            avroBean=new GenericAvroBean();
             avroBean.setErrorMessage(e.getMessage());
         }
         return avroBean;
