@@ -8,8 +8,10 @@ import com.sample.model.GenericAvroBean;
 import com.sample.model.ResponseModel;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.util.List;
 
 @RestController
 @RequestMapping(value = "/avro")
@@ -36,12 +38,16 @@ public class KafkaController {
 
     @GetMapping("/consumer")
     public ResponseModel getMessageFromKafkaTopic() throws IOException{
-        return consumer.readMessages();
+         consumer.readMessages();
+         return null;
     }
 
     @PostMapping("/producer/generic")
-    public String sendMessageToKafkaTopic(@RequestBody GenericAvroBean avroBean)  {
+    public String sendMessageToKafkaTopic(@RequestPart("schemaFile") MultipartFile schemaFile, @RequestPart("messageFile") MultipartFile messageFile)  {
         try {
+            String avroSchema = new String(schemaFile.getBytes());
+            String avroMessage = new String(messageFile.getBytes());
+            GenericAvroBean avroBean = GenericAvroBean.builder().avroSchema(avroSchema).avroMessage(avroMessage).build();
             genericProducer.sendMessage(avroBean);
             return "Message published successfully";
         }
@@ -50,15 +56,10 @@ public class KafkaController {
         }
     }
     @GetMapping("/consumer/generic")
-    public GenericAvroBean getGenMessageFromKafkaTopic()  {
-        GenericAvroBean avroBean = null;
-        try {
-            avroBean = genericConsumer.readMessages();
-        }catch(Exception e){
-            avroBean=new GenericAvroBean();
-            avroBean.setErrorMessage(e.getMessage());
-        }
-        return avroBean;
+    public List<GenericAvroBean> getGenMessageFromKafkaTopic()  {
+        List<GenericAvroBean> avroBeanList = null;
+        avroBeanList = genericConsumer.readMessages();
+        return avroBeanList;
     }
 
 }

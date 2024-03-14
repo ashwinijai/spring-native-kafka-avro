@@ -77,11 +77,13 @@ public class GenericProducerService {
 
             //prepare the kafka record
             ProducerRecord<String, byte[]> record = new ProducerRecord<>("avro-topic", null, bytes);
-            //record.headers().add("schema", avroBean.getAvroSchema().getBytes());
-            //log.info("Schema from header" + new String(record.headers().headers("schema").iterator().next().value()));
+            record.headers().add("schema", avroBean.getAvroSchema().getBytes());
+            log.info("Schema from header" + new String(record.headers().headers("schema").iterator().next().value()));
             producer.send(record);
             //ensures record is sent before closing the producer
             producer.flush();
+
+
 
             producer.close();
         }

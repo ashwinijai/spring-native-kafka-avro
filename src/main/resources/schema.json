@@ -1,0 +1,10 @@
+{"type":"record",
+"name":"EventMessage",
+"namespace":"avro.oracle.fsgbu.plato.eventhub.events",
+"fields":[{"name":"id","type":"string"},
+{"name":"evtCode","type":"string"},
+{"name":"logTime","type":"string"},
+{"name":"logType","type":"string"},
+{"name":"logDescription","type":"string"},
+{"name":"serviceData","type":"string"},
+{"name":"publishedTime","type":"string"}]}

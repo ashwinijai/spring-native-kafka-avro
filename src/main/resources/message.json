@@ -1,0 +1,7 @@
+{ "id":"1",
+  "evtCode":"AVRODEV",
+  "logType":"Info",
+  "logDescription":"Logging info message",
+  "serviceData":"{ \"messageKey\":\"1\",\"messageCode\":\"AVRO\",\"messageLog\":\"Info”}",
+  "publishedTime":"",
+  "logTime":""}
