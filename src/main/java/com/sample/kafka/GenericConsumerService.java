@@ -45,6 +45,11 @@ public class GenericConsumerService {
         List<GenericAvroBean> avroBeanList = new ArrayList<>();
             ConsumerRecords<String, byte[]> records = consumer.poll(Duration.ofMillis(100));
             int messageNo = 0;
+            if(records.isEmpty()){
+                GenericAvroBean genericAvroBean= GenericAvroBean.builder().errorMessage("No messages to consume from topic").build();
+                avroBeanList.add(genericAvroBean);
+                return avroBeanList;
+            }
             for (ConsumerRecord<String, byte[]> record : records) {
                 log.info("offset"+record.offset());
                 GenericAvroBean genericAvroBean = new GenericAvroBean();
@@ -76,6 +81,7 @@ public class GenericConsumerService {
                 }
                 avroBeanList.add(genericAvroBean);
             }
+
             consumer.commitSync();
         return avroBeanList;
     }
