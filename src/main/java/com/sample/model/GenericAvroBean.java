@@ -15,5 +15,6 @@ public class GenericAvroBean {
     private String avroMessage;
     private String avroSchema;
     private String errorMessage;
+    private Integer messageNo;
 
 }
