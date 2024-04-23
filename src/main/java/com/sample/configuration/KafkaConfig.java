@@ -38,7 +38,7 @@ public class KafkaConfig {
     }
 
     @Bean
-    public RestTemplate restTemplate{
-        new RestTemplate();
+    public RestTemplate restTemplate(){
+        return new RestTemplate();
     }
 }
