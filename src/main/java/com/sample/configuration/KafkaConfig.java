@@ -8,6 +8,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.kafka.config.ConcurrentKafkaListenerContainerFactory;
 import org.springframework.kafka.core.ConsumerFactory;
 import org.springframework.kafka.core.DefaultKafkaConsumerFactory;
+import org.springframework.web.client.RestTemplate;
 
 import java.util.Map;
 import java.util.HashMap;
@@ -34,5 +35,10 @@ public class KafkaConfig {
                 new ConcurrentKafkaListenerContainerFactory();
         containerFactory.setConsumerFactory(messageConsumerFactory());
         return containerFactory;
+    }
+
+    @Bean
+    public RestTemplate restTemplate{
+        new RestTemplate();
     }
 }
