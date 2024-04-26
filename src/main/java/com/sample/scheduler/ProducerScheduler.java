@@ -18,7 +18,7 @@ public class ProducerScheduler {
     @Autowired
     RestTemplate restTemplate;
 
-    @Scheduled(cron="${scheduler.cron.value}")
+   // @Scheduled(cron="${scheduler.cron.value}")
     public void produceMessage(){
         log.info("Producer scheduler - start");
         HttpEntity<String> entity = new HttpEntity<>("This is the message to topic",new HttpHeaders());

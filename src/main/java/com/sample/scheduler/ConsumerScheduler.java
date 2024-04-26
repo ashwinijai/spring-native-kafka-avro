@@ -16,7 +16,7 @@ public class ConsumerScheduler {
     KafkaListenerEndpointRegistry kafkaListenerEndpointRegistry;
     @Value("${topicName}")
     private String topicName;
-    @Scheduled(cron="${scheduler.cron.value}")
+   // @Scheduled(cron="${scheduler.cron.value}")
     public void consumeFromTopic(){
         kafkaListenerEndpointRegistry.getListenerContainer(topicName).start();
     }

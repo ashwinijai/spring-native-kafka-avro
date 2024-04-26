@@ -1,17 +1,21 @@
 package com.sample.controllers;
 
-import com.sample.kafka.ConsumerService;
-import com.sample.kafka.GenericConsumerService;
-import com.sample.kafka.GenericProducerService;
-import com.sample.kafka.ProducerService;
+import com.sample.kafka.*;
 import com.sample.model.GenericAvroBean;
 import com.sample.model.ResponseModel;
+import org.apache.commons.compress.utils.FileNameUtils;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.io.ByteArrayResource;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping(value = "/avro")
@@ -29,6 +33,12 @@ public class KafkaController {
 
     @Autowired
     GenericConsumerService genericConsumer;
+
+    @Autowired
+    FileProducerService fileProducer;
+
+    @Autowired
+    FileConsumerService fileConsumer;
 
     @PostMapping("/producer")
     public String sendMessageToKafkaTopic(@RequestBody ResponseModel responseModel) throws IOException {
@@ -60,6 +70,30 @@ public class KafkaController {
         List<GenericAvroBean> avroBeanList = null;
         avroBeanList = genericConsumer.readMessages();
         return avroBeanList;
+    }
+
+    @PostMapping("/producer/file")
+    public String sendFileToKafka(@RequestPart("messageFile") MultipartFile messageFile)  {
+        try {
+            byte[] messageBytes = messageFile.getBytes();
+            String fileExtn = FileNameUtils.getExtension(messageFile.getOriginalFilename());
+            String fileName = FileNameUtils.getBaseName(messageFile.getOriginalFilename());
+            fileProducer.sendMessage(messageBytes,fileName, fileExtn);
+            return "Message published successfully";
+        }
+        catch(Exception e){
+            return e.getMessage();
+        }
+    }
+
+    @GetMapping("/consumer/file")
+    public ResponseEntity<byte []> getFileFromKafka() throws Exception {
+        Map<String, Object> outputMap =fileConsumer.readMessages();
+        if(!outputMap.isEmpty())
+            return new ResponseEntity <> ((byte[])outputMap.get("docContent"), (HttpHeaders)outputMap.get("headers"), HttpStatus.OK);
+        else
+            return new ResponseEntity <> (null, null, HttpStatus.INTERNAL_SERVER_ERROR);
+
     }
 
 }

@@ -28,7 +28,7 @@ import java.util.Properties;
 @Slf4j
 public class ConsumerService {
 
-    public ResponseModel readMessages() throws IOException {
+    public void readMessages() throws IOException {
         Properties properties = new Properties();
         properties.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, "localhost:9092");
         properties.put(ConsumerConfig.GROUP_ID_CONFIG, "generic-record-consumer-group");
@@ -46,7 +46,7 @@ public class ConsumerService {
 
         while (true) {
             ConsumerRecords<String, byte[]> records = consumer.poll(Duration.ofMillis(100));
-            for (ConsumerRecord<String, byte[]> record : records) {
+            for (ConsumerRecord<String, byte[]> record : records.records("avro-topic")) {
                 //avro schema
                 String eventMessageSchema =
                         "{" +
@@ -82,7 +82,7 @@ public class ConsumerService {
                 responseModel.setLogTime(genRecord.get("logTime").toString());
                 responseModel.setPublishedTime(genRecord.get("publishedTime").toString());
                 log.info("Response Model values - {}", responseModel.toString());
-                return responseModel;
+                //return responseModel;
             }
         }
     }
