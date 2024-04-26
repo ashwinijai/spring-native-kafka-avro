@@ -33,7 +33,7 @@ public class FileProducerService {
             record.headers().add("fileName", fileName.getBytes());
             record.headers().add("fileExtn", fileExtn.getBytes());
             producer.send(record);
-        log.info("Schema from header" + new String(record.headers().headers("fileName").iterator().next().value()));
+        log.info("Schema from header" -  + new String(record.headers().headers("fileName").iterator().next().value()));
 
         //ensures record is sent before closing the producer
             producer.flush();

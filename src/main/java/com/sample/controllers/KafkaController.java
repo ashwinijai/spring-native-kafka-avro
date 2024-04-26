@@ -92,7 +92,7 @@ public class KafkaController {
         if(!outputMap.isEmpty())
             return new ResponseEntity <> ((byte[])outputMap.get("docContent"), (HttpHeaders)outputMap.get("headers"), HttpStatus.OK);
         else
-            return new ResponseEntity <> (null, null, HttpStatus.INTERNAL_SERVER_ERROR);
+            return new ResponseEntity <> ("No messages to consume".getBytes(), null, HttpStatus.INTERNAL_SERVER_ERROR);
 
     }
 

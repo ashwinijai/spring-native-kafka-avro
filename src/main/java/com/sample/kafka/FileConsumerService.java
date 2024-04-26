@@ -47,13 +47,6 @@ public class FileConsumerService {
             for (ConsumerRecord<String, byte[]> record : records) {
                 ByteArrayInputStream byteArrayInputStream = new ByteArrayInputStream(record.value());
                 byte [] docContent = byteArrayInputStream.readAllBytes();
-                Headers headers1 = record.headers();
-
-                for (Header header : headers1) {
-                    String key = header.key();
-                    String value = new String(header.value());
-                    System.out.println("Key: " + key + ", Value: " + value);
-                }
                 String fileName = "messageFile";
                 String fileExtn = null;
                 if(null!= record.headers() ){
@@ -62,7 +55,7 @@ public class FileConsumerService {
                     if(null == fileExtnHeader)
                         throw new Exception("File cant be consumed as Extension is empty");
                     outputMap.put("docContent", docContent);
-                    fileName= new String(record.headers().headers("fileName").iterator().next().value());
+                    fileName= new String(fileNameHeader.iterator().next().value());
                     fileExtn=new String(fileExtnHeader.iterator().next().value());
                     org.springframework.http.HttpHeaders headers = new org.springframework.http.HttpHeaders();
                     headers.setContentLength(docContent.length);
