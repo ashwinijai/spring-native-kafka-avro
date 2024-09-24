@@ -1,11 +1,13 @@
 package com.sample.controllers;
 
+import com.sample.entity.Transaction;
 import com.sample.kafka.*;
 import com.sample.model.GenericAvroBean;
 import com.sample.model.ResponseModel;
 import org.apache.commons.compress.utils.FileNameUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.ByteArrayResource;
+import org.springframework.data.repository.config.RepositoryConfigurationSource;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -47,52 +49,51 @@ public class KafkaController {
     }
 
     @GetMapping("/consumer")
-    public ResponseModel getMessageFromKafkaTopic() throws IOException{
-         consumer.readMessages();
-         return null;
+    public ResponseModel getMessageFromKafkaTopic() throws IOException {
+        consumer.readMessages();
+        return null;
     }
 
     @PostMapping("/producer/generic")
-    public String sendMessageToKafkaTopic(@RequestPart("schemaFile") MultipartFile schemaFile, @RequestPart("messageFile") MultipartFile messageFile)  {
+    public String sendMessageToKafkaTopic(@RequestPart("schemaFile") MultipartFile schemaFile, @RequestPart("messageFile") MultipartFile messageFile) {
         try {
             String avroSchema = new String(schemaFile.getBytes());
             String avroMessage = new String(messageFile.getBytes());
             GenericAvroBean avroBean = GenericAvroBean.builder().avroSchema(avroSchema).avroMessage(avroMessage).build();
             genericProducer.sendMessage(avroBean);
             return "Message published successfully";
-        }
-        catch(Exception e){
+        } catch (Exception e) {
             return e.getMessage();
         }
     }
+
     @GetMapping("/consumer/generic")
-    public List<GenericAvroBean> getGenMessageFromKafkaTopic()  {
+    public List<GenericAvroBean> getGenMessageFromKafkaTopic() {
         List<GenericAvroBean> avroBeanList = null;
         avroBeanList = genericConsumer.readMessages();
         return avroBeanList;
     }
 
     @PostMapping("/producer/file")
-    public String sendFileToKafka(@RequestPart("messageFile") MultipartFile messageFile)  {
+    public String sendFileToKafka(@RequestPart("messageFile") MultipartFile messageFile) {
         try {
             byte[] messageBytes = messageFile.getBytes();
             String fileExtn = FileNameUtils.getExtension(messageFile.getOriginalFilename());
             String fileName = FileNameUtils.getBaseName(messageFile.getOriginalFilename());
-            fileProducer.sendMessage(messageBytes,fileName, fileExtn);
+            fileProducer.sendMessage(messageBytes, fileName, fileExtn);
             return "Message published successfully";
-        }
-        catch(Exception e){
+        } catch (Exception e) {
             return e.getMessage();
         }
     }
 
     @GetMapping("/consumer/file")
-    public ResponseEntity<byte []> getFileFromKafka() throws Exception {
-        Map<String, Object> outputMap =fileConsumer.readMessages();
-        if(!outputMap.isEmpty())
-            return new ResponseEntity <> ((byte[])outputMap.get("docContent"), (HttpHeaders)outputMap.get("headers"), HttpStatus.OK);
+    public ResponseEntity<byte[]> getFileFromKafka() throws Exception {
+        Map<String, Object> outputMap = fileConsumer.readMessages();
+        if (!outputMap.isEmpty())
+            return new ResponseEntity<>((byte[]) outputMap.get("docContent"), (HttpHeaders) outputMap.get("headers"), HttpStatus.OK);
         else
-            return new ResponseEntity <> ("No messages to consume".getBytes(), null, HttpStatus.INTERNAL_SERVER_ERROR);
+            return new ResponseEntity<>("No messages to consume".getBytes(), null, HttpStatus.INTERNAL_SERVER_ERROR);
 
     }
 

@@ -29,11 +29,12 @@ public class FileProducerService {
         Producer<String, byte[]> producer = new KafkaProducer<>(properties);
 
             //prepare the kafka record
-            ProducerRecord<String, byte[]> record = new ProducerRecord<>("file-topic",null, bytes);
+            ProducerRecord<String, byte[]> record = new ProducerRecord<>("file-topic", bytes);
+        //ProducerRecord<String, String> record = new ProducerRecord<>("file-topic", "Hello");
             record.headers().add("fileName", fileName.getBytes());
             record.headers().add("fileExtn", fileExtn.getBytes());
             producer.send(record);
-        log.info("Schema from header" -  + new String(record.headers().headers("fileName").iterator().next().value()));
+        log.info("File name from header-"  + new String(record.headers().headers("fileName").iterator().next().value()));
 
         //ensures record is sent before closing the producer
             producer.flush();
