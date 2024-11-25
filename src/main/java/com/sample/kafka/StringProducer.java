@@ -18,12 +18,12 @@ import java.util.Properties;
 @Slf4j
 public class StringProducer {
 
-    public void sendMessage(String bigJson) throws IOException {
+    public void sendMessage(String bigJson, String topicName) throws IOException {
         Properties properties = new Properties();
         properties.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, "localhost:9092");
         properties.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
         properties.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
         Producer<String, String> producer = new KafkaProducer <>(properties);
-        producer.send(new ProducerRecord<>("mongoTopic", bigJson));
+        producer.send(new ProducerRecord<>(topicName, bigJson));
     }
     }

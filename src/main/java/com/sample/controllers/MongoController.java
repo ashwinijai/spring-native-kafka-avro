@@ -5,10 +5,8 @@ import com.sample.entity.Transaction;
 import com.sample.kafka.StringConsumer;
 import com.sample.kafka.StringProducer;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.web.bind.annotation.*;
 
 import java.io.IOException;
 import java.util.List;
@@ -16,15 +14,18 @@ import java.util.List;
 @RestController
 public class MongoController {
 
+    @Value("${refreshed.value}")
+    String actuatorTestValue;
+
     @Autowired
     StringProducer mongoProducer;
 
     @Autowired
     StringConsumer mongoConsumer;
 
-    @PostMapping("/mongoStringProducer")
-    public String postToMongoTopic(@RequestBody String bigJson) throws IOException {
-        mongoProducer.sendMessage(bigJson);
+    @PostMapping("/stringProducer")
+    public String postToMongoTopic(@RequestBody String jsonRequest, @RequestParam("topicName") String topicName) throws IOException {
+        mongoProducer.sendMessage(jsonRequest,topicName);
         return "Message posted successfully";
     }
 
@@ -38,4 +39,5 @@ public class MongoController {
         SampleApplication.restart();
         return "Application restarted successfully";
     }
+
 }
