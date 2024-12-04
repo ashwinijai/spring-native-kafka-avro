@@ -9,9 +9,12 @@ import java.util.List;
 
 @Repository
 public interface FileDetailsRepository extends JpaRepository<FileDetails, String > {
-    @Query("select f from FileDetails f where f.createdDate=:createdDate and f.isStagingCompleted=:isProcessed")
-    List<FileDetails> findFilesByDate(String createdDate, String isProcessed);
+    @Query("select f from FileDetails f where f.extractDate=:extractDate and f.processed=:isProcessed")
+    List<FileDetails> findFilesByDate(String extractDate, String isProcessed);
 
-    @Query("select f from FileDetails f where f.isStagingCompleted=:isProcessed")
+    @Query("select f from FileDetails f where f.processed=:isProcessed")
     List<FileDetails> findUnProcessedFiles(String isProcessed);
+    @Query("select max(s.sNo) from FileDetails s")
+    Long getMaxSno();
+
 }

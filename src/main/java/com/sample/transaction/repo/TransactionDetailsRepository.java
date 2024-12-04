@@ -11,4 +11,7 @@ import java.util.List;
 public interface TransactionDetailsRepository extends JpaRepository<TransactionDetails, String> {
     @Query("select distinct(t.customerNo) from TransactionDetails t")
     List<String> getDistinctCustomerNos();
+
+    @Query("select max(s.sNo) from TransactionDetails s")
+    Long getMaxSno();
 }

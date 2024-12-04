@@ -10,26 +10,34 @@ import java.sql.Date;
 @Data
 public class FileDetails {
     @Id
-    @Column(name="FILE_REFNO")
-    private String fileRefNo;
+    @Column(name= "SNO")
+    private Long sNo;
+    @Column(name="SERVICE_NAME")
+    private String serviceName;
     @Column(name="PAYMENT_TYPE")
     private String paymentType;
-    @Column(name="EFF_DIRECTION")
-    private String effDirection;
-    @Column(name="TOTAl_TX_COUNT")
-    private Long totalTxCount;
-    @Column(name="TX_COUNT")
-    private Long txCount;
-    @Column(name="CONTROL_SUM")
-    private String controlSum;
+    @Column(name="EFT_DIR")
+    private String eftDir;
+    @Column(name="FILEREF_NUM")
+    private String fileRefNo;
     @Column(name="PAGE_BLOCK")
     private String pageBlock;
-    @Column(name="CREATED_DATE")
-    private String createdDate;
-    @Column(name="IS_STAGING_COMPLETED")
-    private String isStagingCompleted;
+    @Column(name = "PAYMT_FORMAT")
+    private String paymentFormat;
+    @Column(name="TOTAlTXNS_COUNT")
+    private Long totalTxCount;
+    @Column(name="TXNS_COUNT")
+    private Long txCount;
+    @Column(name="PROCESSED")
+    private String processed;
     @Lob
-    @Column(name="RAW_JSON")
-    private String rawJson;
+    @Column(name="PAYMENT_MSG")
+    private String paymentMsg;
+    @Column
+    private String clientName;
+    @Column
+    private String createdBy;
+    @Column(name="EXTRACT_DATE")
+    private String extractDate;
 
 }
