@@ -1,16 +1,13 @@
 package com.sample.controllers;
 
-import com.sample.entity.Transaction;
 import com.sample.kafka.*;
 import com.sample.model.GenericAvroBean;
 import com.sample.model.ResponseModel;
+import com.sample.transaction.repo.CustomRepository;
 import org.apache.commons.compress.utils.FileNameUtils;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.core.io.ByteArrayResource;
-import org.springframework.data.repository.config.RepositoryConfigurationSource;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
@@ -41,6 +38,9 @@ public class KafkaController {
 
     @Autowired
     FileConsumerService fileConsumer;
+
+    @Autowired
+    CustomRepository customRepository;
 
     @PostMapping("/producer")
     public String sendMessageToKafkaTopic(@RequestBody ResponseModel responseModel) throws IOException {
@@ -95,6 +95,11 @@ public class KafkaController {
         else
             return new ResponseEntity<>("No messages to consume".getBytes(), null, HttpStatus.INTERNAL_SERVER_ERROR);
 
+    }
+
+    @GetMapping("/executeCustomQuery")
+    public ResponseEntity<List<Object[]>> executeCustomQuery(){
+        return new ResponseEntity<>(customRepository.executeQueryFromCache("select * from FILE_DETAILS"),HttpStatus.OK);
     }
 
 }
