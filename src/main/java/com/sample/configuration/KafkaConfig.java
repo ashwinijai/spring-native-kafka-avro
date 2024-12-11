@@ -41,6 +41,7 @@ public class KafkaConfig {
 }
 
 // Creating a Listener
+    @Bean
 public ConcurrentKafkaListenerContainerFactory
 concurrentKafkaListenerContainerFactory()
 {

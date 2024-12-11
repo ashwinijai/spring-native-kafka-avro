@@ -22,8 +22,14 @@ public class StaticDetails {
     private Long detailCount;
     @Column(name="PROCESSED")
     private String processed;
-    @Column
+    @Column(name="CLIENT_NAME")
     private String clientName;
-    @Column
+    @Column(name="CREATED_BY")
     private String createdBy;
+    @Column(name="REQUEST_MSG_ID")
+    private String requestMsgId;
+    @Column(name="RESPONSE_STATUS")
+    private String responseStatus;
+    @Column(name="RESPONSE_TYPE")
+    private String responseType;
 }

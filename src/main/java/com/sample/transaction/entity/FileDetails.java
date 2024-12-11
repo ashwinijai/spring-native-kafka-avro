@@ -37,7 +37,13 @@ public class FileDetails {
     private String clientName;
     @Column
     private String createdBy;
-    @Column(name="EXTRACT_DATE")
-    private String extractDate;
+    @Column(name="MSG_DT")
+    private String msgDate;
+    @Column(name="REQUEST_MSG_ID")
+    private String requestMsgId;
+    @Column(name="RESPONSE_STATUS")
+    private String responseStatus;
+    @Column(name="RESPONSE_TYPE")
+    private String responseType;
 
 }
