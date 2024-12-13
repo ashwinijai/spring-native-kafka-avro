@@ -78,9 +78,11 @@ public class TransactionService {
         List<StaticDetails> staticDetailsList = null;
         List<FileDetails> stagedFiles = null;
         List<String> validationFailures = new ArrayList<>();
-            staticDetailsList = staticDetailsRepository.getStaticDetails();
+            staticDetailsList = staticDetailsRepository.getStaticDetails("N");
+            stagedFiles = fileDetailsRepository.getFileDetails("N");
+            if(CollectionUtils.isEmpty(staticDetailsList) && CollectionUtils.isEmpty(stagedFiles))
+                return "No Messages pending for validation";
             staticDetailsValidation(staticDetailsList, reqMsgId, validationFailures);
-            stagedFiles = fileDetailsRepository.getFileDetails();
             validatePayments(stagedFiles, "MX", "I", reqMsgId, validationFailures);
             validatePayments(stagedFiles, "MX", "O", reqMsgId, validationFailures);
             validatePayments(stagedFiles, "MT", "I", reqMsgId, validationFailures);
