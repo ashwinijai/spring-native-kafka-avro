@@ -160,7 +160,7 @@ public class TransactionService {
         if (CollectionUtils.isEmpty(paymentList))
             validationFailures.add("No payment found for the combination " + paymentType + " and " + eftDirection);
         else
-            validateTransactions(stagedFiles, paymentType, eftDirection, reqMsgId, validationFailures);
+            validateTransactions(paymentList, paymentType, eftDirection, reqMsgId, validationFailures);
     }
 
     private void validateTransactions(List<FileDetails> filesToBeStaged, String paymentType, String eftDirection, String reqMsgId, List<String> validationFailures) {
@@ -177,7 +177,12 @@ public class TransactionService {
             validationFailures.add("All messages not received within the timeframe for payment type - " + paymentType + " and eftDirection - " + eftDirection);
             isFailure = true;
             updateFileValidationStatus(filesToBeStaged, "F");
-        } else {
+        } else if (filesToBeStaged.size()!= filesToBeStaged.stream().map(FileDetails::getFileRefNo).collect(Collectors.toSet()).size()){
+            log.error("FileRefNum is not unique for payment type - " + paymentType + " and eftDirection" + eftDirection);
+            validationFailures.add("FileRefNum is not unique for payment type - " + paymentType + " and eftDirection - " + eftDirection);
+            isFailure = true;
+            updateFileValidationStatus(filesToBeStaged, "F");
+        }else {
             //validate transaction count and total transaction count
             int totalTxs = 0;
             for (FileDetails f : filesToBeStaged) {
