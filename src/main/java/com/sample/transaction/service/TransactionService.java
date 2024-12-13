@@ -115,7 +115,7 @@ public class TransactionService {
             throw new TransactionException(500, "No static message received for KafkaMsgId - " + kafkaMsgId);
         if (staticDetailsList.size() > 1)
             throw new TransactionException(500, "More than 1 static message received for KafkaMsgId - " + kafkaMsgId);
-        if (staticDetailsList.get(0).getFileRefNo().equals(kafkaMsgId))
+        if (!staticDetailsList.get(0).getRequestMsgId().equals(kafkaMsgId))
             throw new TransactionException(500, "Validation failed for STATIC message. KafkaMsgId - " + kafkaMsgId + " doesn't match with fileRefId of STATIC message");
     }
 
@@ -148,6 +148,9 @@ public class TransactionService {
     private void validateTransactions(List<FileDetails> filesToBeStaged, String paymentType, String eftDirection, String reqMsgId) {
         filesToBeStaged.sort(Comparator.comparing(FileDetails::getFileRefNo));
         int noOfFiles = Integer.parseInt(filesToBeStaged.get(0).getPageBlock().split("/")[1]);
+        log.info("Validation for payment type - "+paymentType +" and eftDirection  - "+eftDirection);
+        log.info("Number of files expected - "+ noOfFiles);
+        log.info("Number of files received - "+ filesToBeStaged.size());
         int totalTransactions = filesToBeStaged.get(0).getTotalTxCount().intValue();
         //validate if we have received all transactions within the timeframe
         if (filesToBeStaged.size() != noOfFiles) {

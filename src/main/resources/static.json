@@ -1,0 +1,6 @@
+{
+  "requestMsgId": "fae083d4-d1e4-44f1-a35a-f0b2bbe98466",
+  "responseStatus": "PASS",
+  "responseType": "STATIC",
+  "responseMsg": "{\"msgDateTimestamp\": \"2024-11-14T21:59:02-05:00\",\"fileReferenceNo\": \"241114215902IMT00001\",\"detailCount\": 10,\"staticDataDetails\": [{\"fintracFieldName\": \"name\",\"fintracFieldValue\": \"value\"}]}\"\n"
+}

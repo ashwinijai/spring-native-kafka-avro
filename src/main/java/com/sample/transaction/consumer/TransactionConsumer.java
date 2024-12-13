@@ -23,15 +23,17 @@ public class TransactionConsumer {
     @Autowired
     StaticDetailsRepository staticDetailsRepository;
 
-    @KafkaListener(id = "id1", topics = "transactionTopic", groupId = "group_id_1", containerFactory = "concurrentKafkaListenerContainerFactory", autoStartup = "false")
+    //@KafkaListener(id = "id1", topics = "transactionTopic", groupId = "group_id", containerFactory = "concurrentKafkaListenerContainerFactory", autoStartup = "false")
+    @KafkaListener(topics = "transactionTopic", groupId = "group_id")
     public void consume(String message) throws JsonProcessingException {
         log.info("All messages consumed");
             ObjectMapper mapper = new ObjectMapper();
             RequestModel request = mapper.readValue(message, RequestModel.class);
             if (request.getResponseStatus().equals("PASS") && request.getResponseType().equals("STATIC")) {
+                Long sNo = staticDetailsRepository.getMaxSno();
                 StaticRequest staticRequest = mapper.readValue(request.getResponseMsg(), StaticRequest.class);
                 StaticDetails staticDetails = new StaticDetails();
-                staticDetails.setSNo(staticDetailsRepository.getMaxSno() + 1);
+                staticDetails.setSNo(null!=sNo?sNo + 1:1);
                 staticDetails.setDetailCount(staticRequest.getDetailCount());
                 staticDetails.setProcessed("Y");
                 staticDetails.setServiceName("ServiceName");
@@ -46,8 +48,9 @@ public class TransactionConsumer {
             } else if (request.getResponseStatus().equals("PASS") && request.getResponseType().equals("PAYMENT")) {
                 FileRequest fileRequest = mapper.readValue(request.getResponseMsg(), FileRequest.class);
                 if ((fileRequest.getPaymentType().equals("MX") || fileRequest.getPaymentType().equals("MT")) && (fileRequest.getEftDirection().equals("I") || fileRequest.getEftDirection().equals("O"))) {
+                   Long sNo = fileDetailsRepository.getMaxSno();
                     FileDetails fileDetails = new FileDetails();
-                    fileDetails.setSNo(fileDetailsRepository.getMaxSno() + 1);
+                    fileDetails.setSNo(null!=sNo?sNo + 1:1);
                     fileDetails.setServiceName("ServiceName");
                     fileDetails.setFileRefNo(fileRequest.getFileReferenceNo());
                     fileDetails.setMsgDate(fileRequest.getExtractDateTime());
