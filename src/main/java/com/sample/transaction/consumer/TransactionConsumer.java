@@ -57,8 +57,8 @@ public class TransactionConsumer {
                     fileDetails.setPageBlock(fileRequest.getPageBlock());
                     fileDetails.setEftDir(fileRequest.getEftDirection());
                     fileDetails.setPaymentType(fileRequest.getPaymentType());
-                    fileDetails.setTxCount(fileRequest.getTotalTxnCount());
-                    fileDetails.setTotalTxCount(fileRequest.getTxCount());
+                    fileDetails.setTxCount(fileRequest.getTxCount());
+                    fileDetails.setTotalTxCount(fileRequest.getTotalTxnCount());
                     fileDetails.setProcessed("N");
                     fileDetails.setPaymentMsg(request.getResponseMsg());
                     fileDetails.setRequestMsgId(request.getRequestMsgId());

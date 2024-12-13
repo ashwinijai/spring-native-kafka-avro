@@ -21,6 +21,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.UUID;
@@ -76,52 +77,70 @@ public class TransactionService {
     public String validateTransactions(String reqMsgId) throws TransactionException {
         List<StaticDetails> staticDetailsList = null;
         List<FileDetails> stagedFiles = null;
-        try {
+        List<String> validationFailures = new ArrayList<>();
             staticDetailsList = staticDetailsRepository.getStaticDetails();
-            staticDetailsValidation(staticDetailsList, reqMsgId);
+            staticDetailsValidation(staticDetailsList, reqMsgId, validationFailures);
             stagedFiles = fileDetailsRepository.getFileDetails();
-            validatePayments(stagedFiles, "MX", "I", reqMsgId);
-            validatePayments(stagedFiles, "MX", "O", reqMsgId);
-            validatePayments(stagedFiles, "MT", "I", reqMsgId);
-            validatePayments(stagedFiles, "MT", "O", reqMsgId);
-        } catch (TransactionException e) {
-            updateValidationStatus(staticDetailsList, stagedFiles, "F");
-            validationFailure(reqMsgId, e.getErrorMessage());
-            throw e;
-        }
-        updateValidationStatus(staticDetailsList, stagedFiles, "P");
-        validationSuccessful(reqMsgId);
+            validatePayments(stagedFiles, "MX", "I", reqMsgId, validationFailures);
+            validatePayments(stagedFiles, "MX", "O", reqMsgId, validationFailures);
+            validatePayments(stagedFiles, "MT", "I", reqMsgId, validationFailures);
+            validatePayments(stagedFiles, "MT", "O", reqMsgId, validationFailures);
+            if(CollectionUtils.isEmpty(validationFailures)) {
+                validationSuccessful(reqMsgId);
+                // save into transaction table get distinct customer Numbers from transaction table
+                saveTransactions(stagedFiles);
+                List<String> customerNumberList = transactionDetailsRepository.getDistinctCustomerNos();
+                log.info("List of Distinct customer Nos - " + customerNumberList.toString());
+                return "Payments validated successfully for reqMsgId - "+reqMsgId;
+            }
+            else {
+                validationFailure(reqMsgId, validationFailures);
+                return  "Payments validation failed for reqMsgId - "+reqMsgId+" with errors - "+validationFailures.toString();
+            }
 
-        // save into transaction table get distinct customer Numbers from transaction table
-        saveTransactions(stagedFiles);
-        List<String> customerNumberList = transactionDetailsRepository.getDistinctCustomerNos();
-        log.info("List of Distinct customer Nos - " + customerNumberList.toString());
-        return "Payments validated successfully for reqMsgId - "+reqMsgId;
     }
 
-    private void updateValidationStatus(List<StaticDetails> staticDetailsList, List<FileDetails> stagedFiles, String status) {
+    private void updateStaticValidationStatus(List<StaticDetails> staticDetailsList, String status) {
         if (!CollectionUtils.isEmpty(staticDetailsList)) {
             staticDetailsList.forEach(s -> s.setProcessed(status));
             staticDetailsRepository.saveAll(staticDetailsList);
         }
+
+    }
+    private void updateFileValidationStatus(List<FileDetails> stagedFiles, String status) {
         if (!CollectionUtils.isEmpty(stagedFiles)) {
-            stagedFiles.forEach(s -> s.setProcessed(status));
-            fileDetailsRepository.saveAll(stagedFiles);
+        stagedFiles.forEach(s -> s.setProcessed(status));
+        fileDetailsRepository.saveAll(stagedFiles);
+    }}
+    private void updateIndividualFileValidationStatus(FileDetails stagedFile, String status) {
+            stagedFile.setProcessed(status);
+            fileDetailsRepository.save(stagedFile);
         }
+
+
+    private void staticDetailsValidation(List<StaticDetails> staticDetailsList, String kafkaMsgId, List<String> validationFailures) {
+        boolean isFailed = false;
+        if (CollectionUtils.isEmpty(staticDetailsList)) {
+            validationFailures.add("No static message received for KafkaMsgId - " + kafkaMsgId);
+            isFailed = true;
+        }
+        else if (staticDetailsList.size() > 1) {
+            validationFailures.add("More than 1 static message received for KafkaMsgId - " + kafkaMsgId);
+            isFailed = true;
+        }
+        else if (!staticDetailsList.get(0).getRequestMsgId().equals(kafkaMsgId)) {
+            validationFailures.add("Validation failed for STATIC message. KafkaMsgId - " + kafkaMsgId + " doesn't match with fileRefId of STATIC message");
+            isFailed = true;
+        }
+        if(isFailed)
+            updateStaticValidationStatus(staticDetailsList, "F");
+        else
+            updateStaticValidationStatus(staticDetailsList, "P");
     }
 
-    private void staticDetailsValidation(List<StaticDetails> staticDetailsList, String kafkaMsgId) {
-        if (CollectionUtils.isEmpty(staticDetailsList))
-            throw new TransactionException(500, "No static message received for KafkaMsgId - " + kafkaMsgId);
-        if (staticDetailsList.size() > 1)
-            throw new TransactionException(500, "More than 1 static message received for KafkaMsgId - " + kafkaMsgId);
-        if (!staticDetailsList.get(0).getRequestMsgId().equals(kafkaMsgId))
-            throw new TransactionException(500, "Validation failed for STATIC message. KafkaMsgId - " + kafkaMsgId + " doesn't match with fileRefId of STATIC message");
-    }
-
-    private void validationFailure(String reqMsgId, String errorMessage) {
+    private void validationFailure(String reqMsgId, List<String> errorMessage) {
         try {
-            stringProducer.sendMessage("NACK for ReqMsgId - " + reqMsgId + " with exception - " + errorMessage, "acknowledgmentTopic");
+            stringProducer.sendMessage("NACK for ReqMsgId - " + reqMsgId + " with exception - " + errorMessage.toString(), "acknowledgmentTopic");
         } catch (IOException e) {
             throw new TransactionException(500, e.getMessage());
         }
@@ -137,52 +156,66 @@ public class TransactionService {
 
     }
 
-    private void validatePayments(List<FileDetails> stagedFiles, String paymentType, String eftDirection, String reqMsgId) {
+    private void validatePayments(List<FileDetails> stagedFiles, String paymentType, String eftDirection, String reqMsgId, List<String> validationFailures) {
         List<FileDetails> paymentList = stagedFiles.stream().filter(f -> f.getPaymentType().equals(paymentType) && f.getEftDir().equals(eftDirection)).collect(Collectors.toList());
         if (CollectionUtils.isEmpty(paymentList))
-            throw new TransactionException(500, "No payment found for the combination " + paymentType + " and " + eftDirection);
-        validateTransactions(stagedFiles, paymentType, eftDirection, reqMsgId);
-
+            validationFailures.add("No payment found for the combination " + paymentType + " and " + eftDirection);
+        else
+            validateTransactions(stagedFiles, paymentType, eftDirection, reqMsgId, validationFailures);
     }
 
-    private void validateTransactions(List<FileDetails> filesToBeStaged, String paymentType, String eftDirection, String reqMsgId) {
+    private void validateTransactions(List<FileDetails> filesToBeStaged, String paymentType, String eftDirection, String reqMsgId, List<String> validationFailures) {
         filesToBeStaged.sort(Comparator.comparing(FileDetails::getFileRefNo));
         int noOfFiles = Integer.parseInt(filesToBeStaged.get(0).getPageBlock().split("/")[1]);
         log.info("Validation for payment type - "+paymentType +" and eftDirection  - "+eftDirection);
         log.info("Number of files expected - "+ noOfFiles);
         log.info("Number of files received - "+ filesToBeStaged.size());
         int totalTransactions = filesToBeStaged.get(0).getTotalTxCount().intValue();
+        boolean isFailure = false;
         //validate if we have received all transactions within the timeframe
         if (filesToBeStaged.size() != noOfFiles) {
-            log.error("All messages not received within the timeframe");
-            throw new TransactionException(500, "All messages not received within the timeframe");
+            log.error("All messages not received within the timeframe for payment type - " + paymentType + " and eftDirection" + eftDirection );
+            validationFailures.add("All messages not received within the timeframe for payment type - " + paymentType + " and eftDirection - " + eftDirection );
+            isFailure=true;
+            updateFileValidationStatus(filesToBeStaged, "F");
         } else {
             //validate transaction count and total transaction count
             int totalTxs = 0;
             for (FileDetails f : filesToBeStaged) {
                 //validate ReqMsgId
                 if (!f.getRequestMsgId().equals(reqMsgId)) {
-                    throw new TransactionException(500, "ReqMsgId doesn't match for FileRefId - " + f.getFileRefNo());
+                    validationFailures.add("ReqMsgId doesn't match for FileRefId - " + f.getFileRefNo()+ "for payment type - " + paymentType + " and eftDirection - " + eftDirection );
+                    isFailure=true;
+                    updateIndividualFileValidationStatus(f,"F");
                 }
-                ObjectMapper mapper = new ObjectMapper();
-                try {
-                    FileRequest request = mapper.readValue(f.getPaymentMsg(), FileRequest.class);
-                    //validate transaction count
-                    if (request.getTransactions().size() != request.getTxCount().intValue()) {
-                        log.error("Transaction counts doesn't match");
-                        throw new TransactionException(500, "Transaction counts doesn't match for payment type - " + paymentType + " and eftDirection" + eftDirection + " in FileRefNo -" + request.getFileReferenceNo());
-                    } else {
-                        totalTxs = totalTxs + request.getTransactions().size();
+                else {
+                    ObjectMapper mapper = new ObjectMapper();
+                    try {
+                        FileRequest request = mapper.readValue(f.getPaymentMsg(), FileRequest.class);
+                        //validate transaction count
+                        if (request.getTransactions().size() != request.getTxCount().intValue()) {
+                            log.error("Transaction counts doesn't match");
+                            validationFailures.add("Transaction counts doesn't match for payment type - " + paymentType + " and eftDirection - " + eftDirection + " in FileRefNo -" + request.getFileReferenceNo());
+                            updateIndividualFileValidationStatus(f,"F");
+                            isFailure=true;
+                        } else {
+                            totalTxs = totalTxs + request.getTransactions().size();
+                        }
+                    } catch (IOException e) {
+                        updateFileValidationStatus(filesToBeStaged, "F");
+                        throw new TransactionException(500, e.getMessage());
                     }
-                } catch (IOException e) {
-                    throw new TransactionException(500, e.getMessage());
                 }
             }
             //validate total transaction count
-            if (totalTxs != totalTransactions) {
+            if (!isFailure && totalTxs != totalTransactions) {
                 log.error("Total Transaction counts doesn't match");
-                throw new TransactionException(500, "Total Transaction counts doesn't match for payment type - " + paymentType + " and eftDirection" + eftDirection);
+                updateFileValidationStatus(filesToBeStaged, "F");
+                validationFailures.add("Total Transaction counts doesn't match for payment type - " + paymentType + " and eftDirection - " + eftDirection);
             }
+        }
+        if(!isFailure){
+            updateFileValidationStatus(filesToBeStaged, "P");
         }
     }
 
