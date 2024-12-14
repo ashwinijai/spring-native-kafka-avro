@@ -38,6 +38,8 @@ public class TransactionDetails {
     private String clientName;
     @Column
     private String createdBy;
+    @Column(name="PAYMENT_FORMAT")
+    private String paymentFormat;
 
 
 }

@@ -2,6 +2,9 @@ package com.sample.transaction.controller;
 
 import com.sample.transaction.exception.TransactionException;
 import com.sample.transaction.kafka.KafkaConsumerHandler;
+import com.sample.transaction.model.FailedMsgsModel;
+import com.sample.transaction.model.ObpmAckNackNotifModel;
+import com.sample.transaction.model.ObpmAckNackRespModel;
 import com.sample.transaction.model.ProducerResponse;
 import com.sample.transaction.service.TransactionService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -12,6 +15,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.io.IOException;
+import java.util.ArrayList;
 
 @RestController
 public class TransactionController {
@@ -55,13 +59,17 @@ public class TransactionController {
     }
 
     @GetMapping("/validateTransactions")
-    public ResponseEntity<String> validateTransactions(@RequestParam("reqMsgId") String reqMsgId){
+    public ResponseEntity<ObpmAckNackRespModel> validateTransactions(@RequestParam("reqMsgId") String reqMsgId){
        try{
-           String response = transactionService.validateTransactions(reqMsgId);
+           ObpmAckNackRespModel response = transactionService.validateTransactions(reqMsgId);
            return new ResponseEntity<>(response, HttpStatus.OK);
        }
        catch(TransactionException e){
-           return new ResponseEntity<>(e.getErrorMessage(),HttpStatus.valueOf(e.getErrorCode()));
+           ObpmAckNackRespModel response = new ObpmAckNackRespModel();
+           response.setRequestMsgType("StatusNotification");
+           ObpmAckNackNotifModel responseMsg = new ObpmAckNackNotifModel("NACK",reqMsgId, "datetimemethod", new ArrayList<>());
+           responseMsg.getFailedFiles().add(new FailedMsgsModel("GENERIC EXCEPTION",e.getErrorMessage()));
+           return new ResponseEntity<>(response,HttpStatus.valueOf(e.getErrorCode()));
        }
     }
 

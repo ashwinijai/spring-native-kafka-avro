@@ -18,4 +18,7 @@ public class PaymentTypes {
     private String paymentType;
     @Column(name="EFT_DIRECTION")
     private String eftDirection;
+    @Column(name ="PAYMENT_FORMAT")
+    private String paymentFormat;
+
 }

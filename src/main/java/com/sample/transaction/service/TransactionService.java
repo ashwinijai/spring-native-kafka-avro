@@ -5,9 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sample.kafka.StringProducer;
 import com.sample.transaction.entity.*;
 import com.sample.transaction.exception.TransactionException;
-import com.sample.transaction.model.FileRequest;
-import com.sample.transaction.model.ProducerResponse;
-import com.sample.transaction.model.TransactionModel;
+import com.sample.transaction.model.*;
 import com.sample.transaction.repo.*;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -71,14 +69,19 @@ public class TransactionService {
         transactionDetailsRepository.deleteAll();
     }
 
-    public String validateTransactions(String reqMsgId) throws TransactionException {
+    public ObpmAckNackRespModel validateTransactions(String reqMsgId) throws TransactionException {
         List<StaticDetails> staticDetailsList = null;
         List<FileDetails> stagedFiles = null;
-        List<String> validationFailures = new ArrayList<>();
+        List<FailedMsgsModel> validationFailures = new ArrayList<>();
+        ObpmAckNackRespModel respModel = null;
         staticDetailsList = staticDetailsRepository.getStaticDetails("N");
         stagedFiles = fileDetailsRepository.getFileDetails("N");
-        if (CollectionUtils.isEmpty(staticDetailsList) && CollectionUtils.isEmpty(stagedFiles))
-            return "No Messages pending for validation";
+        if (CollectionUtils.isEmpty(staticDetailsList) && CollectionUtils.isEmpty(stagedFiles)) {
+            FailedMsgsModel failedMsgsModel = new FailedMsgsModel(reqMsgId, "No messages to process");
+            validationFailures.add(failedMsgsModel);
+            respModel = validationFailure(reqMsgId, validationFailures);
+            return respModel;
+        }
         staticDetailsValidation(staticDetailsList, reqMsgId, validationFailures);
         List<PaymentTypes> paymentTypesList = paymentTypesRepository.getPaymentTypes();
         for (PaymentTypes p : paymentTypesList) {
@@ -87,13 +90,14 @@ public class TransactionService {
         if (CollectionUtils.isEmpty(validationFailures)) {
             validationSuccessful(reqMsgId);
             // save into transaction table get distinct customer Numbers from transaction table
-            saveTransactions(stagedFiles);
+            saveTransactions(stagedFiles, paymentTypesList);
             List<String> customerNumberList = transactionDetailsRepository.getDistinctCustomerNos();
             log.info("List of Distinct customer Nos - " + customerNumberList.toString());
-            return "Payments validated successfully for reqMsgId - " + reqMsgId;
+            log.info("Payments validated successfully for reqMsgId - " + reqMsgId);
+            return respModel;
         } else {
             validationFailure(reqMsgId, validationFailures);
-            return "Payments validation failed for reqMsgId - " + reqMsgId + " with errors - " + validationFailures.toString();
+            return respModel;
         }
 
     }
@@ -119,16 +123,19 @@ public class TransactionService {
     }
 
 
-    private void staticDetailsValidation(List<StaticDetails> staticDetailsList, String kafkaMsgId, List<String> validationFailures) {
+    private void staticDetailsValidation(List<StaticDetails> staticDetailsList, String kafkaMsgId, List<FailedMsgsModel> validationFailures) {
         boolean isFailed = false;
         if (CollectionUtils.isEmpty(staticDetailsList)) {
-            validationFailures.add("No static message received for KafkaMsgId - " + kafkaMsgId);
+            FailedMsgsModel failedMsgsModel = new FailedMsgsModel("STATIC", "No static message received for KafkaMsgId - " + kafkaMsgId);
+            validationFailures.add(failedMsgsModel);
             isFailed = true;
         } else if (staticDetailsList.size() > 1) {
-            validationFailures.add("More than 1 static message received for KafkaMsgId - " + kafkaMsgId);
+            FailedMsgsModel failedMsgsModel = new FailedMsgsModel("STATIC", "More than 1 static message received for KafkaMsgId - " + kafkaMsgId);
+            validationFailures.add(failedMsgsModel);
             isFailed = true;
         } else if (!staticDetailsList.get(0).getRequestMsgId().equals(kafkaMsgId)) {
-            validationFailures.add("Validation failed for STATIC message. KafkaMsgId - " + kafkaMsgId + " doesn't match with fileRefId of STATIC message");
+            FailedMsgsModel failedMsgsModel = new FailedMsgsModel("STATIC", "Validation failed for STATIC message. KafkaMsgId - " + kafkaMsgId + " doesn't match with fileRefId of STATIC message");
+            validationFailures.add(failedMsgsModel);
             isFailed = true;
         }
         if (isFailed)
@@ -137,13 +144,17 @@ public class TransactionService {
             updateStaticValidationStatus(staticDetailsList, "P");
     }
 
-    private void validationFailure(String reqMsgId, List<String> errorMessage) {
+    private ObpmAckNackRespModel validationFailure(String reqMsgId, List<FailedMsgsModel> errorMessage) {
+        ObpmAckNackRespModel responseModel = new ObpmAckNackRespModel();
+        responseModel.setRequestMsgType("StatusNotification");
+        ObpmAckNackNotifModel notifModel = new ObpmAckNackNotifModel("NACK", reqMsgId, "call that date method here", errorMessage);
+        responseModel.setRequestMsg(notifModel);
         try {
             stringProducer.sendMessage("NACK for ReqMsgId - " + reqMsgId + " with exception - " + errorMessage.toString(), "acknowledgmentTopic");
         } catch (IOException e) {
             throw new TransactionException(500, e.getMessage());
         }
-
+        return responseModel;
     }
 
     private void validationSuccessful(String reqMsgId) {
@@ -155,15 +166,16 @@ public class TransactionService {
 
     }
 
-    private void validatePayments(List<FileDetails> stagedFiles, String paymentType, String eftDirection, String reqMsgId, List<String> validationFailures) {
+    private void validatePayments(List<FileDetails> stagedFiles, String paymentType, String eftDirection, String reqMsgId, List<FailedMsgsModel> validationFailures) {
         List<FileDetails> paymentList = stagedFiles.stream().filter(f -> f.getPaymentType().equals(paymentType) && f.getEftDir().equals(eftDirection)).collect(Collectors.toList());
-        if (CollectionUtils.isEmpty(paymentList))
-            validationFailures.add("No payment found for the combination " + paymentType + " and " + eftDirection);
-        else
+        if (CollectionUtils.isEmpty(paymentList)) {
+            FailedMsgsModel failedMsgsModel = new FailedMsgsModel("PAYMENT", "No payment found for the combination " + paymentType + " and " + eftDirection);
+            validationFailures.add(failedMsgsModel);
+        } else
             validateTransactions(paymentList, paymentType, eftDirection, reqMsgId, validationFailures);
     }
 
-    private void validateTransactions(List<FileDetails> filesToBeStaged, String paymentType, String eftDirection, String reqMsgId, List<String> validationFailures) {
+    private void validateTransactions(List<FileDetails> filesToBeStaged, String paymentType, String eftDirection, String reqMsgId, List<FailedMsgsModel> validationFailures) {
         filesToBeStaged.sort(Comparator.comparing(FileDetails::getFileRefNo));
         int noOfFiles = Integer.parseInt(filesToBeStaged.get(0).getPageBlock().split("/")[1]);
         log.info("Validation for payment type - " + paymentType + " and eftDirection  - " + eftDirection);
@@ -174,21 +186,24 @@ public class TransactionService {
         //validate if we have received all transactions within the timeframe
         if (filesToBeStaged.size() != noOfFiles) {
             log.error("All messages not received within the timeframe for payment type - " + paymentType + " and eftDirection" + eftDirection);
-            validationFailures.add("All messages not received within the timeframe for payment type - " + paymentType + " and eftDirection - " + eftDirection);
+            FailedMsgsModel failedMsgsModel = new FailedMsgsModel(paymentType + "-" + eftDirection, "All messages not received within the timeframe for payment type - " + paymentType + " and eftDirection - " + eftDirection);
+            validationFailures.add(failedMsgsModel);
             isFailure = true;
             updateFileValidationStatus(filesToBeStaged, "F");
-        } else if (filesToBeStaged.size()!= filesToBeStaged.stream().map(FileDetails::getFileRefNo).collect(Collectors.toSet()).size()){
+        } else if (filesToBeStaged.size() != filesToBeStaged.stream().map(FileDetails::getFileRefNo).collect(Collectors.toSet()).size()) {
             log.error("FileRefNum is not unique for payment type - " + paymentType + " and eftDirection" + eftDirection);
-            validationFailures.add("FileRefNum is not unique for payment type - " + paymentType + " and eftDirection - " + eftDirection);
+            FailedMsgsModel failedMsgsModel = new FailedMsgsModel(paymentType + "-" + eftDirection, "FileRefNum is not unique for payment type - " + paymentType + " and eftDirection - " + eftDirection);
+            validationFailures.add(failedMsgsModel);
             isFailure = true;
             updateFileValidationStatus(filesToBeStaged, "F");
-        }else {
+        } else {
             //validate transaction count and total transaction count
             int totalTxs = 0;
             for (FileDetails f : filesToBeStaged) {
                 //validate ReqMsgId
                 if (!f.getRequestMsgId().equals(reqMsgId)) {
-                    validationFailures.add("ReqMsgId doesn't match for FileRefId - " + f.getFileRefNo() + "for payment type - " + paymentType + " and eftDirection - " + eftDirection);
+                    FailedMsgsModel failedMsgsModel = new FailedMsgsModel(f.getFileRefNo(), "ReqMsgId doesn't match for FileRefId - " + f.getFileRefNo() + "for payment type - " + paymentType + " and eftDirection - " + eftDirection);
+                    validationFailures.add(failedMsgsModel);
                     isFailure = true;
                     updateIndividualFileValidationStatus(f, "F");
                 } else {
@@ -198,7 +213,8 @@ public class TransactionService {
                         //validate transaction count
                         if (request.getTransactions().size() != request.getTxCount().intValue()) {
                             log.error("Transaction counts doesn't match");
-                            validationFailures.add("Transaction counts doesn't match for payment type - " + paymentType + " and eftDirection - " + eftDirection + " in FileRefNo -" + request.getFileReferenceNo());
+                            FailedMsgsModel failedMsgsModel = new FailedMsgsModel(f.getFileRefNo(), "Transaction counts doesn't match for FileRefId - " + f.getFileRefNo() + "for payment type - " + paymentType + " and eftDirection - " + eftDirection);
+                            validationFailures.add(failedMsgsModel);
                             updateIndividualFileValidationStatus(f, "F");
                             isFailure = true;
                         } else {
@@ -214,7 +230,8 @@ public class TransactionService {
             if (!isFailure && totalTxs != totalTransactions) {
                 log.error("Total Transaction counts doesn't match");
                 updateFileValidationStatus(filesToBeStaged, "F");
-                validationFailures.add("Total Transaction counts doesn't match for payment type - " + paymentType + " and eftDirection - " + eftDirection);
+                FailedMsgsModel failedMsgsModel = new FailedMsgsModel(paymentType + "-" + eftDirection, "Total Transaction counts doesn't match for payment type - " + paymentType + " and eftDirection - " + eftDirection);
+                validationFailures.add(failedMsgsModel);
             }
         }
         if (!isFailure) {
@@ -222,7 +239,7 @@ public class TransactionService {
         }
     }
 
-    private void saveTransactions(List<FileDetails> stagedFiles) {
+    private void saveTransactions(List<FileDetails> stagedFiles, List<PaymentTypes> paymentTypesList) {
         stagedFiles.forEach(f -> {
             ObjectMapper mapper = new ObjectMapper();
             try {
@@ -236,6 +253,7 @@ public class TransactionService {
                     transaction.setPageBlock(request.getPageBlock());
                     transaction.setFileRefNo(request.getFileReferenceNo());
                     transaction.setServiceName("");
+                    transaction.setPaymentFormat("");
                     transaction.setTransactionRef(t.getTransactionReference());
                     transaction.setAccountNo(t.getAccountNumber());
                     transaction.setTxnDt(t.getTransactionDateTime());
